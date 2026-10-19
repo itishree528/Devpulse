@@ -1,0 +1,53 @@
+services:
+  # 1. PostgreSQL Database Service
+  postgres:
+    image: postgres:16-alpine
+    container_name: devpulse_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: devpulse_user
+      POSTGRES_PASSWORD: devpulse_password
+      POSTGRES_DB: devpulse_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devpulse_user -d devpulse_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Node.js Production API & WebSocket Service (Multi-Stage Build)
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: devpulse_server
+    restart: always
+    environment:
+      PORT: 5000
+      DATABASE_URL: "postgresql://devpulse_user:devpulse_password@postgres:5432/devpulse_db?schema=public"
+      JWT_SECRET: "devpulse_super_secret_jwt_key_2026_itishree"
+      NODE_ENV: production
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # 3. React Production Client Service (Multi-Stage Build with Nginx)
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: devpulse_client
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - server
+
+volumes:
+  postgres_data:
+    driver: local
