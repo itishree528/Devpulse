@@ -2,12 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   FileText, 
   Users, 
-  Wifi, 
   WifiOff, 
   Plus, 
   Share2, 
   CheckCircle2, 
-  Code2, 
   Sparkles,
   Edit3,
   UserCheck,
@@ -67,7 +65,7 @@ export default function App() {
   const [myUserColor, setMyUserColor] = useState<string>(() => {
     return localStorage.getItem('devpulse_user_color') || '#3B82F6';
   });
-  const [userRole, setUserRole] = useState<'OWNER' | 'EDITOR' | 'VIEWER'>('OWNER');
+  const [userRole] = useState<'OWNER' | 'EDITOR' | 'VIEWER'>('OWNER');
   const [workspaceName] = useState<string>('DevPulse Engineering');
 
   const [isEditingProfile, setIsEditingProfile] = useState<boolean>(false);
@@ -88,8 +86,8 @@ export default function App() {
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<any>(null);
+  const typingTimeoutRef = useRef<any>(null);
 
   // Send identity to server
   const sendIdentity = (name: string, color: string) => {
@@ -114,10 +112,13 @@ export default function App() {
     let isSubscribed = true;
 
     const connect = () => {
+      const envWsUrl = import.meta.env.VITE_WS_URL;
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const host = window.location.hostname || '127.0.0.1';
-      // Connect directly to port 5000
-      const wsUrl = `${protocol}//${host}:5000/ws/rooms/${docId}`;
+      // Use cloud VITE_WS_URL if deployed on Vercel, or fallback to local port 5000
+      const wsUrl = envWsUrl 
+        ? `${envWsUrl.replace(/^http/, 'ws')}/ws/rooms/${docId}`
+        : `${protocol}//${host}:5000/ws/rooms/${docId}`;
 
       console.log('Connecting to WebSocket:', wsUrl);
       const ws = new WebSocket(wsUrl);
