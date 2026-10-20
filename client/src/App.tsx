@@ -20,7 +20,8 @@ import {
   Code,
   ShieldCheck,
   Building2,
-  Lock
+  Lock,
+  Menu
 } from 'lucide-react';
 
 interface Peer {
@@ -67,6 +68,9 @@ export default function App() {
   });
   const [userRole] = useState<'OWNER' | 'EDITOR' | 'VIEWER'>('OWNER');
   const [workspaceName] = useState<string>('DevPulse Engineering');
+
+  // Mobile drawer responsiveness
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
   const [isEditingProfile, setIsEditingProfile] = useState<boolean>(false);
   const [tempName, setTempName] = useState<string>(myUserName);
@@ -153,9 +157,8 @@ export default function App() {
           } else if (data.type === 'doc_update') {
             setContent(data.content);
             localStorage.setItem(`devpulse_content_${docId}`, data.content);
-            setLastSavedTime('Synced to PostgreSQL just now');
+            setLastSavedTime('Synced just now');
           } else if (data.type === 'peer_cursor') {
-            // Resume Feature: Live Collaborator Cursor Tracking
             setPeerCursors((prev) => ({
               ...prev,
               [data.userName]: {
@@ -210,7 +213,7 @@ export default function App() {
     setIsEditingProfile(false);
   };
 
-  // Broadcast cursor movements (Resume feature: Low-latency cursor tracking)
+  // Broadcast cursor movements (low-latency cursor tracking)
   const handleCursorMove = () => {
     if (!textareaRef.current) return;
     const pos = textareaRef.current.selectionStart;
@@ -291,12 +294,23 @@ export default function App() {
     setDocId(newId);
     setTitle('Untitled Document');
     setContent('# New Document\n\nStart drafting your technical specifications...');
+    setIsMobileSidebarOpen(false);
   };
 
   return (
-    <div className="flex h-screen bg-[#0d1117] text-gray-200 font-sans">
-      {/* Sidebar */}
-      <aside className="w-64 border-r border-gray-800 bg-[#161b22] flex flex-col">
+    <div className="flex h-screen bg-[#0d1117] text-gray-200 font-sans relative overflow-hidden">
+      {/* Mobile Drawer Backdrop Overlay */}
+      {isMobileSidebarOpen && (
+        <div 
+          onClick={() => setIsMobileSidebarOpen(false)}
+          className="fixed inset-0 bg-black/70 z-30 md:hidden backdrop-blur-xs transition-opacity"
+        />
+      )}
+
+      {/* Sidebar (Responsive: Permanent on desktop, sliding drawer on mobile) */}
+      <aside className={`fixed md:relative inset-y-0 left-0 z-40 w-72 md:w-64 border-r border-gray-800 bg-[#161b22] flex flex-col transform transition-transform duration-200 ease-in-out shrink-0 ${
+        isMobileSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'
+      }`}>
         {/* Workspace Brand Header */}
         <div className="p-4 border-b border-gray-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -308,13 +322,22 @@ export default function App() {
               <span className="text-[10px] text-gray-400 font-mono">v2.0 • Production</span>
             </div>
           </div>
-          <button 
-            onClick={createNewDoc}
-            className="p-1.5 rounded-md hover:bg-gray-700/60 text-gray-400 hover:text-white transition-colors"
-            title="Create new document"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button 
+              onClick={createNewDoc}
+              className="p-1.5 rounded-md hover:bg-gray-700/60 text-gray-400 hover:text-white transition-colors"
+              title="Create new document"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => setIsMobileSidebarOpen(false)}
+              className="p-1.5 rounded-md hover:bg-gray-700/60 text-gray-400 hover:text-white md:hidden"
+              title="Close Menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Workspace & RBAC Badge */}
@@ -343,6 +366,7 @@ export default function App() {
               onClick={() => {
                 setDocId(doc.id);
                 setTitle(doc.title);
+                setIsMobileSidebarOpen(false); // auto-close drawer on mobile
               }}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all text-left ${
                 docId === doc.id
@@ -407,40 +431,49 @@ export default function App() {
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col bg-[#0d1117] overflow-hidden">
+      {/* Main Content Area (Takes 100% full screen on mobile) */}
+      <main className="flex-1 flex flex-col bg-[#0d1117] overflow-hidden w-full min-w-0">
         {/* Top Navbar */}
-        <header className="h-14 border-b border-gray-800 px-6 flex items-center justify-between bg-[#161b22]/70 backdrop-blur-sm">
-          <div className="flex items-center gap-3">
+        <header className="h-14 border-b border-gray-800 px-3 md:px-6 flex items-center justify-between bg-[#161b22]/70 backdrop-blur-sm gap-2">
+          <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+            {/* Mobile Hamburger Menu Toggle */}
+            <button
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="md:hidden p-1.5 rounded-lg hover:bg-gray-800 text-gray-300 hover:text-white shrink-0"
+              title="Open Navigation Menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="bg-transparent text-lg font-semibold text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50 rounded px-1.5 py-0.5"
+              className="bg-transparent text-sm md:text-lg font-semibold text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50 rounded px-1.5 py-0.5 truncate flex-1 max-w-[150px] sm:max-w-xs md:max-w-md"
             />
-            <div className="flex items-center gap-1.5 text-xs text-gray-400">
+            <div className="hidden sm:flex items-center gap-1 text-xs text-gray-400 shrink-0">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{lastSavedTime}</span>
+              <span className="hidden md:inline">{lastSavedTime}</span>
             </div>
             {/* Live Typing Status Alert */}
             {typingUser && (
-              <div className="flex items-center gap-1.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2.5 py-0.5 rounded-full text-xs animate-pulse">
+              <div className="hidden sm:flex items-center gap-1.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2.5 py-0.5 rounded-full text-xs animate-pulse truncate">
                 <span>✍️</span>
-                <span><strong>{typingUser}</strong> is typing...</span>
+                <span className="truncate"><strong>{typingUser}</strong> is typing...</span>
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4 shrink-0">
             {/* Real-time active collaborators presence */}
-            <div className="flex items-center gap-2 bg-gray-800/60 px-3 py-1.5 rounded-full border border-gray-700/50">
-              <Users className="w-3.5 h-3.5 text-gray-400" />
+            <div className="flex items-center gap-1.5 md:gap-2 bg-gray-800/60 px-2 md:px-3 py-1 md:py-1.5 rounded-full border border-gray-700/50">
+              <Users className="w-3 h-3 md:w-3.5 md:h-3.5 text-gray-400" />
               <div className="flex items-center -space-x-1.5">
                 {peers.length > 0 ? (
                   peers.map((peer, idx) => (
                     <div
                       key={idx}
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-md ring-2 ring-[#161b22] uppercase transition-transform hover:scale-110 cursor-pointer"
+                      className="w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-md ring-2 ring-[#161b22] uppercase transition-transform hover:scale-110 cursor-pointer"
                       style={{ backgroundColor: peer.color }}
                       title={`${peer.name} is active in this document`}
                     >
@@ -449,7 +482,7 @@ export default function App() {
                   ))
                 ) : (
                   <div 
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow ring-2 ring-[#161b22]"
+                    className="w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow ring-2 ring-[#161b22]"
                     style={{ backgroundColor: myUserColor }}
                     title={`${myUserName} (You)`}
                   >
@@ -457,7 +490,7 @@ export default function App() {
                   </div>
                 )}
               </div>
-              <span className="text-xs font-medium text-gray-300 ml-1">
+              <span className="text-xs font-medium text-gray-300 ml-0.5 hidden sm:inline">
                 {peers.length > 0 ? `${peers.length} Online` : '1 Online (You)'}
               </span>
             </div>
@@ -467,74 +500,74 @@ export default function App() {
                 navigator.clipboard.writeText(window.location.href);
                 alert('Document room link copied to clipboard!');
               }}
-              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors shadow-sm"
+              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium px-2.5 md:px-3 py-1.5 rounded-lg transition-colors shadow-sm"
             >
               <Share2 className="w-3.5 h-3.5" />
-              Share
+              <span className="hidden sm:inline">Share</span>
             </button>
           </div>
         </header>
 
-        {/* Resume Feature: Rich-Text Formatting Toolbar */}
-        <div className="h-10 border-b border-gray-800 px-6 flex items-center gap-1 bg-[#161b22]/40 text-gray-300">
+        {/* Rich-Text Formatting Toolbar (Horizontally scrollable on mobile) */}
+        <div className="h-10 border-b border-gray-800 px-3 md:px-6 flex items-center gap-1 bg-[#161b22]/40 text-gray-300 overflow-x-auto shrink-0 scrollbar-none">
           <button
             onClick={() => applyFormatting('**', '**')}
-            className="p-1.5 rounded hover:bg-gray-800 hover:text-white transition-colors"
+            className="p-1.5 rounded hover:bg-gray-800 hover:text-white transition-colors shrink-0"
             title="Bold (**text**)"
           >
             <Bold className="w-4 h-4" />
           </button>
           <button
             onClick={() => applyFormatting('*', '*')}
-            className="p-1.5 rounded hover:bg-gray-800 hover:text-white transition-colors"
+            className="p-1.5 rounded hover:bg-gray-800 hover:text-white transition-colors shrink-0"
             title="Italic (*text*)"
           >
             <Italic className="w-4 h-4" />
           </button>
-          <div className="w-[1px] h-4 bg-gray-800 mx-1" />
+          <div className="w-[1px] h-4 bg-gray-800 mx-1 shrink-0" />
           <button
             onClick={() => applyFormatting('# ')}
-            className="p-1.5 rounded hover:bg-gray-800 hover:text-white transition-colors"
+            className="p-1.5 rounded hover:bg-gray-800 hover:text-white transition-colors shrink-0"
             title="Heading 1 (# Heading)"
           >
             <Heading1 className="w-4 h-4" />
           </button>
           <button
             onClick={() => applyFormatting('## ')}
-            className="p-1.5 rounded hover:bg-gray-800 hover:text-white transition-colors"
+            className="p-1.5 rounded hover:bg-gray-800 hover:text-white transition-colors shrink-0"
             title="Heading 2 (## Heading)"
           >
             <Heading2 className="w-4 h-4" />
           </button>
-          <div className="w-[1px] h-4 bg-gray-800 mx-1" />
+          <div className="w-[1px] h-4 bg-gray-800 mx-1 shrink-0" />
           <button
             onClick={() => applyFormatting('- ')}
-            className="p-1.5 rounded hover:bg-gray-800 hover:text-white transition-colors"
+            className="p-1.5 rounded hover:bg-gray-800 hover:text-white transition-colors shrink-0"
             title="Bullet List (- item)"
           >
             <List className="w-4 h-4" />
           </button>
           <button
             onClick={() => applyFormatting('> ')}
-            className="p-1.5 rounded hover:bg-gray-800 hover:text-white transition-colors"
+            className="p-1.5 rounded hover:bg-gray-800 hover:text-white transition-colors shrink-0"
             title="Blockquote (> quote)"
           >
             <Quote className="w-4 h-4" />
           </button>
           <button
             onClick={() => applyFormatting('```\n', '\n```')}
-            className="p-1.5 rounded hover:bg-gray-800 hover:text-white transition-colors"
+            className="p-1.5 rounded hover:bg-gray-800 hover:text-white transition-colors shrink-0"
             title="Code Block (```code```)"
           >
             <Code className="w-4 h-4" />
           </button>
 
           {/* Active Collaborators Cursor Indicator Pill */}
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2 shrink-0">
             {Object.values(peerCursors).map((cursor, idx) => (
               <span
                 key={idx}
-                className="text-[11px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1 border shadow-xs animate-fade-in"
+                className="text-[10px] md:text-[11px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1 border shadow-xs animate-fade-in shrink-0"
                 style={{
                   backgroundColor: `${cursor.userColor}15`,
                   borderColor: `${cursor.userColor}40`,
@@ -542,15 +575,15 @@ export default function App() {
                 }}
               >
                 <span className="w-1.5 h-1.5 rounded-full animate-ping" style={{ backgroundColor: cursor.userColor }} />
-                <span>{cursor.userName} at Line {cursor.line}</span>
+                <span>{cursor.userName} at L{cursor.line}</span>
               </span>
             ))}
           </div>
         </div>
 
-        {/* Editor Area */}
-        <div className="flex-1 overflow-y-auto p-8 flex justify-center">
-          <div className="w-full max-w-4xl flex flex-col">
+        {/* Editor Area (Takes 100% full screen width on mobile with clean text flow) */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 flex justify-center w-full">
+          <div className="w-full max-w-4xl flex flex-col h-full">
             <textarea
               ref={textareaRef}
               value={content}
@@ -559,7 +592,7 @@ export default function App() {
               onClick={handleCursorMove}
               onSelect={handleCursorMove}
               placeholder="Start drafting your collaborative document..."
-              className="w-full flex-1 bg-transparent text-gray-100 font-mono text-base resize-none focus:outline-none leading-relaxed border-none p-4"
+              className="w-full flex-1 bg-transparent text-gray-100 font-mono text-sm md:text-base resize-none focus:outline-none leading-relaxed border-none p-2 md:p-4 outline-none"
               rows={24}
               spellCheck={false}
             />
@@ -567,18 +600,18 @@ export default function App() {
         </div>
 
         {/* Footer Statistics */}
-        <footer className="h-8 border-t border-gray-800 px-6 flex items-center justify-between text-xs text-gray-400 bg-[#161b22]">
-          <div className="flex items-center gap-4">
+        <footer className="h-8 border-t border-gray-800 px-3 md:px-6 flex items-center justify-between text-[11px] md:text-xs text-gray-400 bg-[#161b22] shrink-0">
+          <div className="flex items-center gap-2 md:gap-4">
             <span>{content.split(/\s+/).filter(Boolean).length} words</span>
-            <span>{content.length} characters</span>
+            <span className="hidden sm:inline">{content.length} characters</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 md:gap-3">
             <span className="flex items-center gap-1 text-emerald-400">
               <Lock className="w-3 h-3" />
-              <span>HTTP-Only JWT Cookies</span>
+              <span className="hidden sm:inline">HTTP-Only JWT Cookies</span>
             </span>
-            <span>•</span>
-            <span className="text-blue-400 font-mono">1,200 req/sec benchmarked</span>
+            <span className="hidden sm:inline">•</span>
+            <span className="text-blue-400 font-mono text-[10px] md:text-xs">1,200 req/sec</span>
           </div>
         </footer>
       </main>
