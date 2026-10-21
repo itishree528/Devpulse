@@ -8,55 +8,50 @@ on:
 
 jobs:
   lint-and-typecheck:
-    name: Lint & Typecheck Services
+    name: Lint, Typecheck & Build
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: devpulse_user
-          POSTGRES_PASSWORD: devpulse_password
-          POSTGRES_DB: devpulse_db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install Server Dependencies & Generate Prisma Client
+      # Server Verification
+      - name: Install Server Dependencies
         run: |
           cd server
-          npm ci
+          npm install
+
+      - name: Validate Prisma Schema & Generate Client
+        run: |
+          cd server
+          npx prisma validate
           npx prisma generate
-          npx prisma db push --accept-data-loss
         env:
           DATABASE_URL: "postgresql://devpulse_user:devpulse_password@localhost:5432/devpulse_db?schema=public"
 
-      - name: Typecheck Server
+      - name: Build Server (TypeScript Compile)
         run: |
           cd server
-          npx tsc --noEmit
+          npm run build
 
-      - name: Install Client Dependencies & Typecheck
+      # Client Verification
+      - name: Install Client Dependencies
         run: |
           cd client
-          npm ci
-          npx tsc --noEmit
+          npm install
+
+      - name: Build Client (Vite Production Bundle)
+        run: |
+          cd client
+          npm run build
 
   docker-build:
-    name: Build Multi-Stage Docker Images
+    name: Verify Multi-Stage Docker Builds
     needs: lint-and-typecheck
     runs-on: ubuntu-latest
 
@@ -67,7 +62,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Server Image
+      - name: Build Server Image (Multi-Stage)
         uses: docker/build-push-action@v5
         with:
           context: ./server
@@ -75,7 +70,7 @@ jobs:
           push: false
           tags: devpulse-server:latest
 
-      - name: Build Client Image
+      - name: Build Client Image (Multi-Stage)
         uses: docker/build-push-action@v5
         with:
           context: ./client

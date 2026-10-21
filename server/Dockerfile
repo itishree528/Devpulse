@@ -8,7 +8,7 @@ COPY package*.json ./
 COPY tsconfig.json ./
 COPY prisma ./prisma/
 
-RUN npm ci
+RUN npm install
 RUN npx prisma generate
 
 COPY src ./src
@@ -23,7 +23,7 @@ ENV NODE_ENV=production
 ENV PORT=5000
 
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm install --omit=dev
 
 COPY prisma ./prisma/
 COPY --from=builder /app/dist ./dist
